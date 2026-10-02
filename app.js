@@ -1,5 +1,5 @@
 // Store configuration. For live catalogue updates, connect the Google Apps Script endpoint described in SETUP.md.
-const CONFIG={whatsapp:"+91 9390662074",instagram:"https://www.instagram.com/urs_highstreet?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==",apiUrl:""};
+const CONFIG={whatsapp:"919390662074",instagram:"https://www.instagram.com/urs_highstreet?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==",apiUrl:""};
 const FITS=["Regular Fit","Oversized Fit","Sweatshirt","Hoodie"],SIZES=["XS","S","M","L","XL","XXL"];
 const starter=[
 {id:"HS001",name:"HIGHSTREET ORIGINALS",art:"HIGH<br>STREET",category:"Graphic",price:699,types:["Regular Fit","Oversized Fit"],sizes:SIZES,season:"Core",active:true,image:"",badge:"FIRST DROP"},

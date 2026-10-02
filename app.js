@@ -4,7 +4,8 @@ const FITS=["Regular Fit","Oversized Fit","Sweatshirt","Hoodie"],SIZES=["XS","S"
 const starter=[
 {id:"HS001",name:"HIGHSTREET ORIGINALS",art:"HIGH<br>STREET",category:"Graphic",price:699,types:["Regular Fit","Oversized Fit"],sizes:SIZES,season:"Core",active:true,image:"",badge:"FIRST DROP"},
 {id:"HS002",name:"STAY WEIRD",art:"STAY<br>WEIRD",category:"Graphic",price:749,types:["Oversized Fit","Hoodie"],sizes:SIZES,season:"Seasonal",active:true,image:"",badge:"NEW"},
-{id:"HS003",name:"LESS TALK",art:"LESS<br>TALK",category:"Minimal",price:649,types:["Regular Fit","Sweatshirt"],sizes:SIZES,season:"Core",active:true,image:"",badge:"ESSENTIAL"}
+{id:"HS003",name:"LESS TALK",art:"LESS<br>TALK",category:"Minimal",price:649,types:["Regular Fit","Sweatshirt"],sizes:SIZES,season:"Core",active:true,image:"",badge:"ESSENTIAL"},
+{id:"HS004",name:"Mee Innocent friend kosam..",art:"YOUR ART",category:"Graphic",price:399,types:["Regular Fit","Oversized Fit"],sizes:SIZES,season:"Core",active:true,image:"images/Innocent%20X%20Graphic%20Tee%20Front%20and%20Back.png",badge:"NEW"}
 ];
 let products=load("hs_products",starter),events=load("hs_events",[{id:"EV1",title:"THE FIRST DROP",details:"Explore the opening HIGHSTREET collection.",badge:"NOW LIVE",active:true},{id:"EV2",title:"CUSTOM DESIGN WEEK",details:"Bring your idea. Let's make it wearable.",badge:"CUSTOM",active:true}]),cart=[],activeFit="All",activeCat="All",admin=false;
 function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}function save(){localStorage.setItem("hs_products",JSON.stringify(products));localStorage.setItem("hs_events",JSON.stringify(events))}

@@ -29,4 +29,52 @@ function fillProduct(p){let f=document.getElementById("productForm");for(let k o
 document.getElementById("productForm").onsubmit=e=>{e.preventDefault();let f=e.target,d=new FormData(f),id=d.get("id")||"HS"+Date.now(),old=products.find(p=>p.id===id);let p={id,name:d.get("name"),image:d.get("image"),art:d.get("art"),price:+d.get("price"),category:d.get("category")||"Graphic",types:[...f.querySelectorAll('[name="types"]:checked')].map(x=>x.value),sizes:[...f.querySelectorAll('[name="sizes"]:checked')].map(x=>x.value),season:d.get("season"),active:f.elements.active.checked,badge:old?.badge||"NEW"};if(!p.types.length||!p.sizes.length)return alert("Select at least one product type and size.");if(old)products=products.map(x=>x.id===id?p:x);else products.unshift(p);save();f.reset();f.elements.id.value="";render();renderAdmin()};
 document.getElementById("eventForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target);events.unshift({id:"EV"+Date.now(),title:d.get("title"),details:d.get("details"),image:d.get("image"),badge:d.get("badge"),active:e.target.elements.active.checked});save();renderEvents();renderAdmin();e.target.reset()};
 document.getElementById("settingsForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target);CONFIG.whatsapp=d.get("whatsapp").replace(/\D/g,"");CONFIG.instagram=d.get("instagram");document.getElementById("igLink").href=CONFIG.instagram;alert("Saved for this page session. For permanent live settings, update CONFIG in app.js or connect the backend.");};
+
 render();renderEvents();renderCart();
+
+// Load the live catalogue from the Google Sheet via the Apps Script JSONP endpoint.
+// The Apps Script endpoint supports a ?callback=... parameter, avoiding browser CORS issues.
+function loadLiveCatalogue(){
+  if(!CONFIG.apiUrl) return;
+  const callbackName="hsCatalogueCallback_"+Date.now();
+  const script=document.createElement("script");
+  let finished=false;
+  const cleanup=()=>{
+    if(finished) return;
+    finished=true;
+    try{delete window[callbackName]}catch(_){window[callbackName]=undefined}
+    script.remove();
+  };
+  window[callbackName]=data=>{
+    try{
+      if(data && Array.isArray(data.products)){
+        products=data.products
+          .filter(p=>p && p.active!==false)
+          .map(p=>({
+            ...p,
+            id:String(p.id||""),
+            name:String(p.name||""),
+            price:Number(p.price)||0,
+            category:p.category||"Graphic",
+            types:Array.isArray(p.types)?p.types:[],
+            sizes:Array.isArray(p.sizes)?p.sizes:SIZES,
+            image:p.image||"",
+            art:p.art||"YOUR ART",
+            season:p.season||"Core",
+            badge:p.badge||"NEW",
+            active:p.active!==false
+          }));
+        render();
+        if(admin) renderAdmin();
+      }
+    }finally{cleanup()}
+  };
+  script.onerror=()=>{
+    cleanup();
+    console.warn("Could not load the live HIGHSTREET catalogue. Showing the locally saved catalogue.");
+  };
+  script.src=CONFIG.apiUrl+(CONFIG.apiUrl.includes("?")?"&":"?")+"callback="+encodeURIComponent(callbackName);
+  document.head.appendChild(script);
+}
+loadLiveCatalogue();
+

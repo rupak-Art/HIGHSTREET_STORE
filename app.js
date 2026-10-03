@@ -101,9 +101,7 @@ function attachAdminSignIn() {
     admin = true;
     document.getElementById("adminLogin").hidden = true;
     document.getElementById("adminPanel").hidden = false;
-    // Keep legacy local-only edit controls unavailable until the protected Sheets write API is implemented.
-    document.getElementById("adminPanel").innerHTML =
-      '<p class="notice">Admin identity verified. Secure product editing is not enabled yet; this page will not save changes locally or to the live catalogue.</p><button id="adminLogout" class="text-btn" type="button">SIGN OUT</button>';
+    renderAdmin();
     document.getElementById("adminLogout").onclick = async () => {
       try { await client.auth.signOut(); } finally {
         admin = false; adminSession = null;
@@ -127,9 +125,60 @@ attachAdminSignIn();
 // Initialize auth early so recovery links can be detected after the page loads.
 getSupabaseClient().catch(() => {});
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabpane").forEach(x=>x.hidden=true);document.getElementById(b.dataset.tab).hidden=false;document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("selected",x===b))});
-function renderAdmin(){document.getElementById("adminProductList").innerHTML=products.map(p=>`<div class="admin-item"><span>${esc(p.name)} · ${p.types.join(", ")}</span><span><button data-edit="${p.id}">EDIT</button> <button data-del="${p.id}">DELETE</button></span></div>`).join("");document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{products=products.filter(p=>p.id!==b.dataset.del);save();render();renderAdmin()});document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>fillProduct(products.find(p=>p.id===b.dataset.edit)));document.getElementById("adminEventList").innerHTML=events.map(e=>`<div class="admin-item"><span>${esc(e.title)}</span><button data-edel="${e.id}">DELETE</button></div>`).join("");document.querySelectorAll("[data-edel]").forEach(b=>b.onclick=()=>{events=events.filter(e=>e.id!==b.dataset.edel);save();renderEvents();renderAdmin()})}
+function renderAdmin(){
+  document.getElementById("adminProductList").innerHTML =
+    '<p class="notice">Product saves are sent securely to Google Sheets. Product deletion is not connected yet.</p>' +
+    products.map(p=>`<div class="admin-item"><span>${esc(p.name)} · ${p.types.map(esc).join(", ")}</span><span><button data-edit="${esc(p.id)}">EDIT</button></span></div>`).join("");
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>fillProduct(products.find(x=>x.id===b.dataset.edit)));
+  document.getElementById("adminEventList").innerHTML=events.map(e=>`<div class="admin-item"><span>${esc(e.title)}</span><button data-edel="${e.id}">DELETE</button></div>`).join("");
+  document.querySelectorAll("[data-edel]").forEach(b=>b.onclick=()=>{events=events.filter(e=>e.id!==b.dataset.edel);save();renderEvents();renderAdmin()});
+}
 function fillProduct(p){let f=document.getElementById("productForm");for(let k of ["id","name","image","art","price","category","season"])f.elements[k].value=p[k]??"";f.querySelectorAll('[name="types"]').forEach(x=>x.checked=p.types.includes(x.value));f.querySelectorAll('[name="sizes"]').forEach(x=>x.checked=p.sizes.includes(x.value));f.elements.active.checked=p.active;document.getElementById("productsTab").scrollIntoView({behavior:"smooth"})}
-document.getElementById("productForm").onsubmit=e=>{e.preventDefault();let f=e.target,d=new FormData(f),id=d.get("id")||"HS"+Date.now(),old=products.find(p=>p.id===id);let p={id,name:d.get("name"),image:d.get("image"),art:d.get("art"),price:+d.get("price"),category:d.get("category")||"Graphic",types:[...f.querySelectorAll('[name="types"]:checked')].map(x=>x.value),sizes:[...f.querySelectorAll('[name="sizes"]:checked')].map(x=>x.value),season:d.get("season"),active:f.elements.active.checked,badge:old?.badge||"NEW"};if(!p.types.length||!p.sizes.length)return alert("Select at least one product type and size.");if(old)products=products.map(x=>x.id===id?p:x);else products.unshift(p);save();f.reset();f.elements.id.value="";render();renderAdmin()};
+document.getElementById("productForm").onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target;
+  const d = new FormData(f);
+  const id = d.get("id") || "HS" + Date.now();
+  const old = products.find(x => x.id === id);
+  const p = {
+    id, name: d.get("name"), image: d.get("image"), art: d.get("art") || "YOUR ART",
+    price: Number(d.get("price")), category: d.get("category") || "Graphic",
+    types: [...f.querySelectorAll('[name="types"]:checked')].map(x => x.value),
+    sizes: [...f.querySelectorAll('[name="sizes"]:checked')].map(x => x.value),
+    season: d.get("season") || "Core", active: f.elements.active.checked,
+    badge: old?.badge || "NEW"
+  };
+  if (!p.types.length || !p.sizes.length) {
+    alert("Select at least one product type and size.");
+    return;
+  }
+  const saveButton = f.querySelector('button[type="submit"]');
+  const originalText = saveButton.textContent;
+  saveButton.disabled = true;
+  saveButton.textContent = "SAVING TO GOOGLE SHEETS…";
+  try {
+    const client = await getSupabaseClient();
+    const { data, error } = await client.functions.invoke("admin-products", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminSession.access_token}` },
+      body: { action: "upsertProduct", product: p }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "Product was not saved.");
+    if (old) products = products.map(x => x.id === id ? p : x);
+    else products.unshift(p);
+    render();
+    renderAdmin();
+    f.reset();
+    f.elements.id.value = "";
+    alert(`Product ${p.id} saved to Google Sheets (row ${data.row}).`);
+  } catch (err) {
+    alert(err?.message || "Could not save the product. Please try again.");
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = originalText;
+  }
+};
 document.getElementById("eventForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target);events.unshift({id:"EV"+Date.now(),title:d.get("title"),details:d.get("details"),image:d.get("image"),badge:d.get("badge"),active:e.target.elements.active.checked});save();renderEvents();renderAdmin();e.target.reset()};
 document.getElementById("settingsForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target);CONFIG.whatsapp=d.get("whatsapp").replace(/\D/g,"");CONFIG.instagram=d.get("instagram");document.getElementById("igLink").href=CONFIG.instagram;alert("Saved for this page session. For permanent live settings, update CONFIG in app.js or connect the backend.");};
 

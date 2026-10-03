@@ -242,6 +242,52 @@ function loadLiveCatalogue(){
   document.head.appendChild(script);
 }
 loadLiveCatalogue();
+// Load Events from the Google Sheets Events tab
+function loadLiveEvents() {
+  if (!CONFIG.apiUrl) return;
+
+  const callbackName = "hsEventsCallback_" + Date.now();
+  const script = document.createElement("script");
+
+  window[callbackName] = data => {
+    try {
+      if (data && Array.isArray(data.events)) {
+        events = data.events.map(e => ({
+          id: String(e.id || ""),
+          title: String(e.name || ""),
+          details: String(e.description || ""),
+          image: String(e.image || ""),
+          badge: "HIGHSTREET EVENT",
+          active: e.active === true,
+          startDate: String(e.startDate || ""),
+          endDate: String(e.endDate || ""),
+          buttonText: String(e.buttonText || ""),
+          buttonLink: String(e.buttonLink || "")
+        }));
+
+        renderEvents();
+      }
+    } finally {
+      delete window[callbackName];
+      script.remove();
+    }
+  };
+
+  script.onerror = () => {
+    delete window[callbackName];
+    script.remove();
+    console.warn("Could not load HIGHSTREET Events.");
+  };
+
+  script.src = CONFIG.apiUrl
+    + (CONFIG.apiUrl.includes("?") ? "&" : "?")
+    + "type=events&callback="
+    + encodeURIComponent(callbackName);
+
+  document.head.appendChild(script);
+}
+
+loadLiveEvents();
 
 // HIGHSTREET product image popup
 document.addEventListener("click", e => {

@@ -53,3 +53,116 @@
   .gallery-arrow { width:28px; height:28px; font-size:20px; }
   .gallery-thumb { width:30px; height:30px; flex-basis:30px; }
 }
+
+/* HIGHSTREET product image popup */
+.product-img img {
+  cursor: zoom-in;
+  transition: transform .4s cubic-bezier(.2,.8,.2,1);
+}
+
+.product-img:hover img {
+  transform: scale(1.045);
+}
+
+#hsImageViewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(12, 12, 12, .88);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .3s ease, visibility .3s ease;
+}
+
+#hsImageViewer.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.hs-preview-frame {
+  position: relative;
+  max-width: 92vw;
+  max-height: 90vh;
+  padding: 12px;
+  background: #f3f0e8;
+  box-shadow: 0 25px 80px #0008;
+  transform: scale(.82) translateY(20px);
+  transition: transform .45s cubic-bezier(.2,.8,.2,1);
+}
+
+#hsImageViewer.open .hs-preview-frame {
+  transform: scale(1) translateY(0);
+}
+
+.hs-preview-frame img {
+  display: block;
+  max-width: 88vw;
+  max-height: 80vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.hs-preview-frame span {
+  display: block;
+  padding-top: 10px;
+  font: 10px 'Archivo Black';
+  letter-spacing: 1.5px;
+}
+
+.hs-preview-close {
+  position: absolute;
+  top: 22px;
+  right: 25px;
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #fff8;
+  border-radius: 50%;
+  background: #171717;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform .25s ease, background .25s ease;
+}
+
+.hs-preview-close:hover {
+  transform: rotate(90deg);
+  background: #ef4b2f;
+}
+
+body.hs-preview-open {
+  overflow: hidden;
+}
+
+@media (max-width: 600px) {
+  #hsImageViewer {
+    padding: 12px;
+  }
+
+  .hs-preview-frame {
+    max-width: 96vw;
+    padding: 8px;
+  }
+
+  .hs-preview-frame img {
+    max-width: 88vw;
+    max-height: 78vh;
+  }
+
+  .hs-preview-close {
+    top: 12px;
+    right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #hsImageViewer,
+  .hs-preview-frame,
+  .product-img img {
+    transition: none;
+  }
+}

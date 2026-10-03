@@ -21,8 +21,64 @@ document.getElementById("checkout").onclick=()=>{if(!cart.length)return alert("Y
 document.getElementById("customForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target),u=wa(`Hi HIGHSTREET! Custom order request\nName: ${d.get("name")}\nIdea: ${d.get("idea")}\nFit: ${d.get("fit")}`);if(u)window.open(u,"_blank")};
 document.getElementById("igLink").href=CONFIG.instagram;document.getElementById("year").textContent=new Date().getFullYear();
 const modal=document.getElementById("adminModal");document.getElementById("adminOpen").onclick=()=>modal.classList.add("show");
-document.getElementById("previewLogin").onclick=()=>{admin=true;document.getElementById("adminLogin").hidden=true;document.getElementById("adminPanel").hidden=false;renderAdmin()};
-document.getElementById("adminLogout").onclick=()=>{admin=false;document.getElementById("adminLogin").hidden=false;document.getElementById("adminPanel").hidden=true;modal.classList.remove("show")};
+// Supabase admin authentication. The publishable key is public by design; never put service-role keys here.
+const SUPABASE_CONFIG = {
+  url: "https://ydxitwostiygauymvuox.supabase.co",
+  publishableKey: "sb_publishable_8K-Kj6cwZO47l60uIc6pZQ_k7l9XBSC"
+};
+let supabaseClient = null;
+let adminSession = null;
+
+async function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+  if (!SUPABASE_CONFIG.publishableKey || SUPABASE_CONFIG.publishableKey.includes("PASTE_YOUR")) {
+    throw new Error("Add your Supabase publishable key in app.js first.");
+  }
+  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+  supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey);
+  return supabaseClient;
+}
+
+document.getElementById("adminSignIn").onclick = async () => {
+  const message = document.getElementById("adminAuthMessage");
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value;
+  message.textContent = "Signing in…";
+  try {
+    const client = await getSupabaseClient();
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    adminSession = data.session;
+    const { data: check, error: checkError } = await client.functions.invoke("admin-products", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminSession.access_token}` }
+    });
+    if (checkError) throw checkError;
+    if (!check || check.success !== true) throw new Error("Admin access denied.");
+    admin = true;
+    document.getElementById("adminLogin").hidden = true;
+    document.getElementById("adminPanel").hidden = false;
+    // Keep legacy local-only edit controls unavailable until the protected Sheets write API is implemented.
+    document.getElementById("adminPanel").innerHTML =
+      '<p class="notice">Admin identity verified. Secure product editing is not enabled yet; this page will not save changes locally or to the live catalogue.</p><button id="adminLogout" class="text-btn" type="button">SIGN OUT</button>';
+    document.getElementById("adminLogout").onclick = async () => {
+      try { await client.auth.signOut(); } finally {
+        admin = false; adminSession = null;
+        document.getElementById("adminLogin").hidden = false;
+        document.getElementById("adminPanel").hidden = true;
+        document.getElementById("adminAuthMessage").textContent = "Signed out.";
+        modal.classList.remove("show");
+      }
+    };
+    message.textContent = "";
+  } catch (err) {
+    message.textContent = err?.message || "Sign-in failed. Check your credentials and try again.";
+    try { const client = await getSupabaseClient(); await client.auth.signOut(); } catch (_) {}
+    admin = false; adminSession = null;
+  } finally {
+    document.getElementById("adminPassword").value = "";
+  }
+};
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabpane").forEach(x=>x.hidden=true);document.getElementById(b.dataset.tab).hidden=false;document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("selected",x===b))});
 function renderAdmin(){document.getElementById("adminProductList").innerHTML=products.map(p=>`<div class="admin-item"><span>${esc(p.name)} · ${p.types.join(", ")}</span><span><button data-edit="${p.id}">EDIT</button> <button data-del="${p.id}">DELETE</button></span></div>`).join("");document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{products=products.filter(p=>p.id!==b.dataset.del);save();render();renderAdmin()});document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>fillProduct(products.find(p=>p.id===b.dataset.edit)));document.getElementById("adminEventList").innerHTML=events.map(e=>`<div class="admin-item"><span>${esc(e.title)}</span><button data-edel="${e.id}">DELETE</button></div>`).join("");document.querySelectorAll("[data-edel]").forEach(b=>b.onclick=()=>{events=events.filter(e=>e.id!==b.dataset.edel);save();renderEvents();renderAdmin()})}
 function fillProduct(p){let f=document.getElementById("productForm");for(let k of ["id","name","image","art","price","category","season"])f.elements[k].value=p[k]??"";f.querySelectorAll('[name="types"]').forEach(x=>x.checked=p.types.includes(x.value));f.querySelectorAll('[name="sizes"]').forEach(x=>x.checked=p.sizes.includes(x.value));f.elements.active.checked=p.active;document.getElementById("productsTab").scrollIntoView({behavior:"smooth"})}

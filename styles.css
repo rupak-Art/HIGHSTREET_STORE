@@ -38,3 +38,18 @@
   .hero-stamp { font-size:10px !important; }
   .hero-note { font-size:9px; }
 }
+
+/* Product image gallery */
+.product-gallery { position:relative; }
+.product-gallery .gallery-main { display:block; width:100%; height:100%; object-fit:cover; }
+.gallery-arrow { position:absolute; z-index:2; top:45%; width:32px; height:32px; border:0; border-radius:50%; background:#f3f0e8e8; color:#171717; font-size:23px; line-height:1; cursor:pointer; }
+.gallery-prev { left:9px; }
+.gallery-next { right:9px; }
+.gallery-thumbs { position:absolute; z-index:3; bottom:9px; left:50%; transform:translateX(-50%); display:flex; gap:6px; max-width:85%; overflow-x:auto; }
+.gallery-thumb { width:38px; height:38px; flex:0 0 38px; padding:2px; border:1px solid #f3f0e8; background:#f3f0e8; opacity:.72; cursor:pointer; }
+.gallery-thumb.active { border:2px solid #ef4b2f; opacity:1; }
+.gallery-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+@media(max-width:700px) {
+  .gallery-arrow { width:28px; height:28px; font-size:20px; }
+  .gallery-thumb { width:30px; height:30px; flex-basis:30px; }
+}

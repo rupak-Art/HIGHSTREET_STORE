@@ -243,3 +243,48 @@ function loadLiveCatalogue(){
 }
 loadLiveCatalogue();
 
+// HIGHSTREET product image popup
+document.addEventListener("click", e => {
+  const productImage = e.target.closest(".product-img img");
+
+  if (productImage) {
+    let viewer = document.getElementById("hsImageViewer");
+
+    if (!viewer) {
+      viewer = document.createElement("div");
+      viewer.id = "hsImageViewer";
+      viewer.innerHTML = `
+        <button class="hs-preview-close" aria-label="Close image preview">✕</button>
+        <div class="hs-preview-frame">
+          <img src="" alt="Product preview">
+          <span>HIGHSTREET® · PRODUCT PREVIEW</span>
+        </div>
+      `;
+      document.body.appendChild(viewer);
+
+      viewer.addEventListener("click", event => {
+        if (
+          event.target === viewer ||
+          event.target.closest(".hs-preview-close")
+        ) {
+          viewer.classList.remove("open");
+          document.body.classList.remove("hs-preview-open");
+        }
+      });
+    }
+
+    const preview = viewer.querySelector("img");
+    preview.src = productImage.currentSrc || productImage.src;
+    preview.alt = productImage.alt || "HIGHSTREET product";
+
+    viewer.classList.add("open");
+    document.body.classList.add("hs-preview-open");
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    document.getElementById("hsImageViewer")?.classList.remove("open");
+    document.body.classList.remove("hs-preview-open");
+  }
+});

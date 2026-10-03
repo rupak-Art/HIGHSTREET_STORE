@@ -36,10 +36,53 @@ async function getSupabaseClient() {
   }
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
   supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey);
+  // Handle Supabase password-recovery links on this page.
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY" && session) showPasswordResetForm();
+  });
   return supabaseClient;
 }
 
-document.getElementById("adminSignIn").onclick = async () => {
+function showPasswordResetForm() {
+  const login = document.getElementById("adminLogin");
+  login.hidden = false;
+  document.getElementById("adminPanel").hidden = true;
+  login.innerHTML = `
+    <p class="notice">Set a new password for your HIGHSTREET admin account.</p>
+    <label>New password<input id="newAdminPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></label>
+    <label>Confirm new password<input id="confirmAdminPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Enter it again"></label>
+    <button id="saveNewAdminPassword" class="cta" type="button">UPDATE PASSWORD</button>
+    <p id="passwordResetMessage" class="notice" role="status"></p>`;
+  document.getElementById("saveNewAdminPassword").onclick = async () => {
+    const msg = document.getElementById("passwordResetMessage");
+    const password = document.getElementById("newAdminPassword").value;
+    const confirm = document.getElementById("confirmAdminPassword").value;
+    if (password.length < 8) { msg.textContent = "Use at least 8 characters."; return; }
+    if (password !== confirm) { msg.textContent = "Passwords do not match."; return; }
+    msg.textContent = "Updating password…";
+    try {
+      const client = await getSupabaseClient();
+      const { error } = await client.auth.updateUser({ password });
+      if (error) throw error;
+      await client.auth.signOut();
+      history.replaceState(null, "", location.pathname + location.search);
+      login.innerHTML = `
+        <p class="notice">Password updated. Sign in with your new password.</p>
+        <label>Admin email<input id="adminEmail" type="email" autocomplete="username" required placeholder="Your email"></label>
+        <label>Password<input id="adminPassword" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+        <button id="adminSignIn" class="cta" type="button">SIGN IN</button>
+        <p id="adminAuthMessage" class="notice" role="status"></p>`;
+      // Reconnect the normal sign-in handler after rebuilding the form.
+      attachAdminSignIn();
+    } catch (err) { msg.textContent = err?.message || "Could not update password."; }
+  };
+}
+
+
+function attachAdminSignIn() {
+  const signInButton = document.getElementById("adminSignIn");
+  if (!signInButton) return;
+  signInButton.onclick = async () => {
   const message = document.getElementById("adminAuthMessage");
   const email = document.getElementById("adminEmail").value.trim();
   const password = document.getElementById("adminPassword").value;
@@ -78,7 +121,11 @@ document.getElementById("adminSignIn").onclick = async () => {
   } finally {
     document.getElementById("adminPassword").value = "";
   }
-};
+  };
+}
+attachAdminSignIn();
+// Initialize auth early so recovery links can be detected after the page loads.
+getSupabaseClient().catch(() => {});
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabpane").forEach(x=>x.hidden=true);document.getElementById(b.dataset.tab).hidden=false;document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("selected",x===b))});
 function renderAdmin(){document.getElementById("adminProductList").innerHTML=products.map(p=>`<div class="admin-item"><span>${esc(p.name)} · ${p.types.join(", ")}</span><span><button data-edit="${p.id}">EDIT</button> <button data-del="${p.id}">DELETE</button></span></div>`).join("");document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{products=products.filter(p=>p.id!==b.dataset.del);save();render();renderAdmin()});document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>fillProduct(products.find(p=>p.id===b.dataset.edit)));document.getElementById("adminEventList").innerHTML=events.map(e=>`<div class="admin-item"><span>${esc(e.title)}</span><button data-edel="${e.id}">DELETE</button></div>`).join("");document.querySelectorAll("[data-edel]").forEach(b=>b.onclick=()=>{events=events.filter(e=>e.id!==b.dataset.edel);save();renderEvents();renderAdmin()})}
 function fillProduct(p){let f=document.getElementById("productForm");for(let k of ["id","name","image","art","price","category","season"])f.elements[k].value=p[k]??"";f.querySelectorAll('[name="types"]').forEach(x=>x.checked=p.types.includes(x.value));f.querySelectorAll('[name="sizes"]').forEach(x=>x.checked=p.sizes.includes(x.value));f.elements.active.checked=p.active;document.getElementById("productsTab").scrollIntoView({behavior:"smooth"})}

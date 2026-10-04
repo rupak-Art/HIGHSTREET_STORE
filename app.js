@@ -262,10 +262,32 @@ function loadLiveEvents() {
           startDate: String(e.startDate || ""),
           endDate: String(e.endDate || ""),
           buttonText: String(e.buttonText || ""),
-          buttonLink: String(e.buttonLink || "")
+          buttonLink: String(e.buttonLink || ""),
+          themeName: String(e.themeName || ""),
+          backgroundGradient: String(e.backgroundGradient || ""),
+          textColor: String(e.textColor || ""),
+          accentColor: String(e.accentColor || ""),
+          buttonColor: String(e.buttonColor || ""),
+          buttonTextColor: String(e.buttonTextColor || "")
         }));
 
         renderEvents();
+
+        const now = new Date();
+
+        const activeEvent = events
+          .filter(e => {
+            const start = parseEventDate(e.startDate);
+            const end = parseEventDate(e.endDate, true);
+
+            return e.active && start && end &&
+              now >= start && now <= end;
+          })
+          .sort((a, b) =>
+            parseEventDate(b.startDate) - parseEventDate(a.startDate)
+          )[0];
+
+        applyEventTheme(activeEvent);
       }
     } finally {
       delete window[callbackName];
@@ -285,6 +307,76 @@ function loadLiveEvents() {
     + encodeURIComponent(callbackName);
 
   document.head.appendChild(script);
+}
+
+function parseEventDate(value, endOfDay = false) {
+  if (!value) return null;
+
+  const s = String(value).trim();
+  let date;
+
+  let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (match) {
+    date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  } else {
+    match = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (match) {
+      // Interprets dates as DD/MM/YYYY, suitable for the India locale.
+      date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+    } else {
+      date = new Date(s);
+      if (isNaN(date.getTime())) return null;
+    }
+  }
+
+  if (isNaN(date.getTime())) return null;
+
+  if (endOfDay) date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function applyEventTheme(event) {
+  const root = document.documentElement;
+  const body = document.body;
+
+  const themeVariables = [
+    "--hs-theme-background",
+    "--hs-theme-text",
+    "--hs-theme-accent",
+    "--hs-theme-button",
+    "--hs-theme-button-text"
+  ];
+
+  if (!event) {
+    themeVariables.forEach(name => root.style.removeProperty(name));
+    body.style.removeProperty("background");
+    body.style.removeProperty("color");
+    return;
+  }
+
+  const gradient = event.backgroundGradient.trim();
+
+  if (gradient && CSS.supports("background", gradient)) {
+    root.style.setProperty("--hs-theme-background", gradient);
+    body.style.background = gradient;
+  }
+
+  if (event.textColor) {
+    root.style.setProperty("--hs-theme-text", event.textColor);
+    body.style.color = event.textColor;
+  }
+
+  if (event.accentColor) {
+    root.style.setProperty("--hs-theme-accent", event.accentColor);
+  }
+
+  if (event.buttonColor) {
+    root.style.setProperty("--hs-theme-button", event.buttonColor);
+  }
+
+  if (event.buttonTextColor) {
+    root.style.setProperty("--hs-theme-button-text", event.buttonTextColor);
+  }
 }
 
 loadLiveEvents();

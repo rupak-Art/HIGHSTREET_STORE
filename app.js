@@ -8,7 +8,6 @@ const starter=[
 {id:"HS004",name:"Mee Innocent friend kosam..",art:"YOUR ART",category:"Graphic",price:399,types:["Regular Fit","Oversized Fit"],sizes:SIZES,season:"Core",active:true,image:"images/Innocent%20X%20Graphic%20Tee%20Front%20and%20Back.png",badge:"NEW"}
 ];
 let products=load("hs_products",starter),events=load("hs_events",[{id:"EV1",title:"THE FIRST DROP",details:"Explore the opening HIGHSTREET collection.",badge:"NOW LIVE",active:true},{id:"EV2",title:"CUSTOM DESIGN WEEK",details:"Bring your idea. Let's make it wearable.",badge:"CUSTOM",active:true}]),cart=[],activeFit="All",activeCat="All",activeCollection="All",admin=false;
-let revealObserver = null;
 function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}
 function save(){localStorage.setItem("hs_products",JSON.stringify(products));localStorage.setItem("hs_events",JSON.stringify(events))}
 function productImages(p){return String(p?.image||"").split("|").map(x=>x.trim()).filter(Boolean)}

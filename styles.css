@@ -395,9 +395,3 @@ nav a:hover::after {
 .product-card:nth-child(4) { transition-delay: 0.24s; }
 .product-card:nth-child(5) { transition-delay: 0.32s; }
 .product-card:nth-child(6) { transition-delay: 0.40s; }
-
-/* TEMP FIX: keep content visible while scroll animation is repaired */
-.scroll-reveal {
-  opacity: 1 !important;
-  transform: none !important;
-}

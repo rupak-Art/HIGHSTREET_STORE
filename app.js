@@ -439,3 +439,26 @@ document.addEventListener("keydown", e => {
     document.body.classList.remove("hs-preview-open");
   }
 });
+
+// HIGHSTREET: Scroll-reveal animations
+document.addEventListener("DOMContentLoaded", () => {
+  const revealItems = document.querySelectorAll(
+    ".event, .product-card, .collection-card, section"
+  );
+
+  revealItems.forEach((item) => item.classList.add("scroll-reveal"));
+
+  const observer = new IntersectionObserver(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12 }
+  );
+
+  revealItems.forEach((item) => observer.observe(item));
+});

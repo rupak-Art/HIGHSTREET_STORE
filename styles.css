@@ -166,3 +166,41 @@ body.hs-preview-open {
     transition: none;
   }
 }
+
+/* Automatic HIGHSTREET event theme */
+body {
+  color: var(--hs-theme-text, #171717);
+}
+
+header {
+  background: var(--hs-theme-background, #f3f0e8);
+}
+
+.hero h1 i,
+.custom h2 i,
+.hero-note,
+.event a,
+a:hover {
+  color: var(--hs-theme-accent, #ef4b2f);
+}
+
+.cta,
+.orderline button,
+.filters button.active,
+.custom .cta {
+  background: var(--hs-theme-button, #171717);
+  color: var(--hs-theme-button-text, #ffffff);
+}
+
+.cart-btn b,
+.custom {
+  background: var(--hs-theme-accent, #ef4b2f);
+}
+
+.meme-sticker {
+  box-shadow: 4px 4px 0 var(--hs-theme-accent, #ef4b2f);
+}
+
+.gallery-thumb.active {
+  border-color: var(--hs-theme-accent, #ef4b2f);
+}

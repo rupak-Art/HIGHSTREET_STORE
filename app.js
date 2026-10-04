@@ -441,14 +441,24 @@ document.addEventListener("keydown", e => {
 });
 
 // HIGHSTREET: Scroll-reveal animations
-document.addEventListener("DOMContentLoaded", () => {
-  const revealItems = document.querySelectorAll(
+let revealObserver = null;
+
+function observeRevealItems(root = document) {
+  const revealItems = root.querySelectorAll(
     ".event, .product-card, .collection-card, section"
   );
 
-  revealItems.forEach((item) => item.classList.add("scroll-reveal"));
+  revealItems.forEach((item) => {
+    item.classList.add("scroll-reveal");
 
-  const observer = new IntersectionObserver(
+    if (revealObserver) {
+      revealObserver.observe(item);
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  revealObserver = new IntersectionObserver(
     (entries, observer) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -460,5 +470,5 @@ document.addEventListener("DOMContentLoaded", () => {
     { threshold: 0.12 }
   );
 
-  revealItems.forEach((item) => observer.observe(item));
+  observeRevealItems();
 });

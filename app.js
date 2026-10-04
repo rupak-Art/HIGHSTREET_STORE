@@ -8,6 +8,7 @@ const starter=[
 {id:"HS004",name:"Mee Innocent friend kosam..",art:"YOUR ART",category:"Graphic",price:399,types:["Regular Fit","Oversized Fit"],sizes:SIZES,season:"Core",active:true,image:"images/Innocent%20X%20Graphic%20Tee%20Front%20and%20Back.png",badge:"NEW"}
 ];
 let products=load("hs_products",starter),events=load("hs_events",[{id:"EV1",title:"THE FIRST DROP",details:"Explore the opening HIGHSTREET collection.",badge:"NOW LIVE",active:true},{id:"EV2",title:"CUSTOM DESIGN WEEK",details:"Bring your idea. Let's make it wearable.",badge:"CUSTOM",active:true}]),cart=[],activeFit="All",activeCat="All",activeCollection="All",admin=false;
+let revealObserver = null;
 function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}
 function save(){localStorage.setItem("hs_products",JSON.stringify(products));localStorage.setItem("hs_events",JSON.stringify(events))}
 function productImages(p){return String(p?.image||"").split("|").map(x=>x.trim()).filter(Boolean)}
@@ -27,6 +28,9 @@ function renderFilters(){
   });
 }
 function render(){renderFilters();let shown=products.filter(p=>p.active&&(activeCollection==="All"||(p.collection||"Unisex")===activeCollection)&&(activeCat==="All"||p.category===activeCat)&&(activeFit==="All"||p.types.includes(activeFit)));document.getElementById("products").innerHTML=shown.map(p=>{const imgs=productImages(p);return `<article class="product-card"><div class="product-img product-gallery" data-gallery="${esc(p.id)}">${imgs.length?`<img class="gallery-main" src="${esc(imgs[0])}" alt="${esc(p.name)}">`:`<div class="shirt-fallback">${p.art||esc(p.name)}</div>`}${imgs.length>1?`<button class="gallery-arrow gallery-prev" type="button" data-gallery-prev="${esc(p.id)}" aria-label="Previous image">‹</button><button class="gallery-arrow gallery-next" type="button" data-gallery-next="${esc(p.id)}" aria-label="Next image">›</button><div class="gallery-thumbs">${imgs.map((src,i)=>`<button type="button" class="gallery-thumb ${i===0?'active':''}" data-gallery-thumb="${esc(p.id)}" data-index="${i}" aria-label="Show image ${i+1}"><img src="${esc(src)}" alt=""></button>`).join("")}</div>`:""}<span class="pill">${esc(p.badge||p.season)}</span></div><div class="pinfo"><div><h3>${esc(p.name)}</h3><p>${p.types.map(esc).join(" · ")}</p>${p.description ? `<p class="product-description">${esc(p.description)}</p>` : ""}</div><span class="price">₹${p.price}</span></div><div class="orderline"><select id="size-${p.id}">${p.sizes.map(s=>`<option>${esc(s)}</option>`).join("")}</select><button data-add="${p.id}">ADD TO BAG +</button></div></article>`}).join("")||"<p>No products in this filter yet.</p>";
+if (revealObserver) {
+  observeRevealItems(document.getElementById("products"));
+}            
   document.querySelectorAll("[data-gallery-prev],[data-gallery-next],[data-gallery-thumb]").forEach(b=>b.onclick=()=>{
     const id=b.dataset.galleryPrev||b.dataset.galleryNext||b.dataset.galleryThumb;
     const p=products.find(x=>x.id===id); if(!p)return;

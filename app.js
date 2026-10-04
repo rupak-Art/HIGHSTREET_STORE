@@ -168,7 +168,7 @@ document.getElementById("productForm").onsubmit = async e => {
   const old = products.find(x => x.id === id);
   const p = {
     id, name: d.get("name"), image: d.get("image"), art: d.get("art") || "YOUR ART",
-    price: Number(d.get("price")), category: d.get("category") || "Graphic",
+    price: Number(d.get("price")), category: d.get("category") || "Graphic", collection: d.get("collection") || "Unisex",
     types: [...f.querySelectorAll('[name="types"]:checked')].map(x => x.value),
     sizes: [...f.querySelectorAll('[name="sizes"]:checked')].map(x => x.value),
     season: d.get("season") || "Core", active: f.elements.active.checked,

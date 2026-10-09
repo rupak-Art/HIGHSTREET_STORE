@@ -78,7 +78,7 @@ const modal=document.getElementById("adminModal");document.getElementById("admin
 // Supabase admin authentication. The publishable key is public by design; never put service-role keys here.
 const SUPABASE_CONFIG = {
   url: "https://ydxitwostiygauymvuox.supabase.co",
-  publishableKey: "sb_publishable_8K-Kj6cwZO47l60uIc6pZQ_k7l9XBSC"
+  publishableKey: "sb_publishable_8K-Kj6cwZO47l60uIc6pZQ_k7l9XBSC",
   createOrderFunctionUrl: "https://ydxitwostiygauymvuox.supabase.co/functions/v1/create-order"
 };
 let supabaseClient = null;

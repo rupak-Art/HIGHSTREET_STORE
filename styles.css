@@ -395,3 +395,33 @@ nav a:hover::after {
 .product-card:nth-child(4) { transition-delay: 0.24s; }
 .product-card:nth-child(5) { transition-delay: 0.32s; }
 .product-card:nth-child(6) { transition-delay: 0.40s; }
+
+
+/* Checkout flow — first phase (COD request + WhatsApp confirmation). */
+.checkout-modal { z-index: 1001; }
+.checkout-box { width: min(760px, calc(100vw - 28px)); max-height: calc(100vh - 28px); overflow: auto; }
+.checkout-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
+.checkout-grid label, #checkoutForm > label { display: flex; flex-direction: column; gap: 7px; font-size: .82rem; }
+.checkout-grid input, .checkout-grid textarea { width: 100%; box-sizing: border-box; border: 1px solid #b9b9b9; background: transparent; color: inherit; padding: 12px; font: inherit; border-radius: 2px; }
+.checkout-wide { grid-column: 1 / -1; }
+.checkout-summary { padding: 16px; margin: 18px 0; border: 1px solid currentColor; }
+.checkout-summary h4, .payment-choice legend { margin: 0 0 12px; font-size: .82rem; letter-spacing: .08em; font-weight: 800; }
+.checkout-summary-row { display: flex; justify-content: space-between; gap: 14px; padding: 7px 0; font-size: .85rem; }
+.checkout-summary .total { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid currentColor; }
+.payment-choice { margin: 18px 0; padding: 14px; border: 1px solid currentColor; }
+.payment-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; cursor: pointer; }
+.payment-option input { margin-top: 4px; accent-color: var(--hs-theme-accent, #ef4b2f); }
+.payment-option span { display: flex; flex-direction: column; gap: 5px; }
+.payment-option small { line-height: 1.45; opacity: .75; }
+.payment-disabled { opacity: .58; cursor: not-allowed; }
+.checkout-submit { width: 100%; }
+.cart-item-copy { flex: 1; }
+.quantity-control { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.quantity-control button { width: 28px; height: 28px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: 18px; }
+.cart-row { align-items: flex-start; }
+@media (max-width: 560px) {
+  .checkout-grid { grid-template-columns: 1fr; }
+  .checkout-wide { grid-column: auto; }
+  .checkout-box { padding: 18px; }
+  .checkout-summary-row { font-size: .78rem; }
+}

@@ -42,12 +42,36 @@ if (revealObserver) {
     gallery.querySelector(".gallery-main").src=imgs[next];
     gallery.querySelectorAll(".gallery-thumb").forEach((t,i)=>t.classList.toggle("active",i===next));
   });
-  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{let p=products.find(x=>x.id===b.dataset.add),size=document.getElementById("size-"+p.id).value;cart.push({id:p.id,name:p.name,size,price:Number(p.price)});renderCart()})}
-function renderCart(){document.getElementById("cartCount").textContent=cart.length;document.getElementById("cartItems").innerHTML=cart.map((x,i)=>`<div class="cart-row"><span><b>${esc(x.name)}</b><br>${esc(x.size)} · ₹${x.price}</span><button data-remove="${i}">REMOVE</button></div>`).join("")||"<p>Your bag is empty.</p>";document.getElementById("cartTotal").textContent="₹"+cart.reduce((a,x)=>a+x.price,0);document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{cart.splice(+b.dataset.remove,1);renderCart()})}
+  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{let p=products.find(x=>x.id===b.dataset.add),size=document.getElementById("size-"+p.id).value;let existing=cart.find(x=>x.id===p.id&&x.size===size);if(existing)existing.qty=(existing.qty||1)+1;else cart.push({id:p.id,name:p.name,size,price:Number(p.price),qty:1});renderCart()})}
+function cartSubtotal(){return cart.reduce((sum,item)=>sum+Number(item.price)*(Number(item.qty)||1),0)}
+function renderCart(){
+  const count=cart.reduce((sum,item)=>sum+(Number(item.qty)||1),0);
+  document.getElementById("cartCount").textContent=count;
+  document.getElementById("cartItems").innerHTML=cart.map((x,i)=>`<div class="cart-row"><span class="cart-item-copy"><b>${esc(x.name)}</b><br>${esc(x.size)} · ₹${x.price} each<div class="quantity-control"><button type="button" data-qty="${i}" data-delta="-1" aria-label="Decrease quantity">−</button><span>${Number(x.qty)||1}</span><button type="button" data-qty="${i}" data-delta="1" aria-label="Increase quantity">+</button></div></span><button type="button" data-remove="${i}">REMOVE</button></div>`).join("")||"<p>Your bag is empty.</p>";
+  document.getElementById("cartTotal").textContent="₹"+cartSubtotal();
+  document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{cart.splice(+b.dataset.remove,1);renderCart()});
+  document.querySelectorAll("[data-qty]").forEach(b=>b.onclick=()=>{const item=cart[Number(b.dataset.qty)];if(!item)return;item.qty=(Number(item.qty)||1)+Number(b.dataset.delta);if(item.qty<=0)cart.splice(Number(b.dataset.qty),1);renderCart()});
+}
 function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function openDrawer(){document.getElementById("cartDrawer").classList.add("open");document.getElementById("scrim").classList.add("show")}function closeAll(){document.getElementById("cartDrawer").classList.remove("open");document.getElementById("scrim").classList.remove("show")}
-document.getElementById("cartOpen").onclick=openDrawer;document.getElementById("scrim").onclick=closeAll;document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{document.getElementById(b.dataset.close).classList.remove("show");closeAll()});
-document.getElementById("checkout").onclick=()=>{if(!cart.length)return alert("Your bag is empty.");let lines=cart.map(x=>`${x.name} / ${x.size} / ₹${x.price}`).join("\n");let total=cart.reduce((a,x)=>a+x.price,0),url=wa(`Hi HIGHSTREET! I'd like to place this order:\n${lines}\nTotal: ₹${total}\nPlease confirm availability, delivery charges and payment details.`);if(url)window.open(url,"_blank")};
+document.getElementById("cartOpen").onclick=openDrawer;document.getElementById("scrim").onclick=closeAll;document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{const target=document.getElementById(b.dataset.close);target.classList.remove("show");if(target.hasAttribute("aria-hidden"))target.setAttribute("aria-hidden","true");closeAll()});
+const checkoutModal=document.getElementById("checkoutModal");
+document.getElementById("checkout").onclick=()=>{if(!cart.length)return alert("Your bag is empty.");renderCheckoutSummary();checkoutModal.classList.add("show");checkoutModal.setAttribute("aria-hidden","false");closeAll();};
+function renderCheckoutSummary(){
+  document.getElementById("checkoutSummaryItems").innerHTML=cart.map(x=>`<div class="checkout-summary-row"><span>${esc(x.name)} · ${esc(x.size)} × ${Number(x.qty)||1}</span><b>₹${Number(x.price)*(Number(x.qty)||1)}</b></div>`).join("");
+  document.getElementById("checkoutSubtotal").textContent="₹"+cartSubtotal();
+}
+document.getElementById("checkoutForm").onsubmit=e=>{
+  e.preventDefault();
+  if(!cart.length){alert("Your bag is empty.");checkoutModal.classList.remove("show");return;}
+  const form=e.currentTarget, data=new FormData(form), method=data.get("paymentMethod");
+  if(method==="online"){document.getElementById("checkoutMessage").textContent="Online payment is not enabled yet. Please choose COD until the payment gateway is configured.";return;}
+  const submit=form.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent="PREPARING ORDER…";
+  const items=cart.map(x=>`• ${x.name} / ${x.size} × ${Number(x.qty)||1} / ₹${Number(x.price)*(Number(x.qty)||1)}`).join("\n");
+  const message=`Hi HIGHSTREET! I would like to request a Cash on Delivery order.\n\nCUSTOMER DETAILS\nName: ${data.get("customerName")}\nMobile: ${data.get("mobile")}\nEmail: ${data.get("email")||"Not provided"}\nAddress: ${data.get("address")}\nCity: ${data.get("city")}\nState: ${data.get("state")}\nPIN: ${data.get("pincode")}\n\nORDER\n${items}\nSubtotal: ₹${cartSubtotal()}\nPayment: Cash on Delivery\n\nPlease confirm stock, shipping charges and delivery estimate. I understand this is an order request and is not confirmed until HIGHSTREET replies.`;
+  const url=wa(message);submit.disabled=false;submit.textContent="CONTINUE WITH COD ON WHATSAPP ↗";
+  if(url){window.open(url,"_blank","noopener,noreferrer");document.getElementById("checkoutMessage").textContent="WhatsApp opened with your order request. Review the message and press Send to contact HIGHSTREET.";}
+};
 document.getElementById("customForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target),u=wa(`Hi HIGHSTREET! Custom order request\nName: ${d.get("name")}\nIdea: ${d.get("idea")}\nFit: ${d.get("fit")}`);if(u)window.open(u,"_blank")};
 document.getElementById("igLink").href=CONFIG.instagram;document.getElementById("year").textContent=new Date().getFullYear();
 const modal=document.getElementById("adminModal");document.getElementById("adminOpen").onclick=()=>modal.classList.add("show");

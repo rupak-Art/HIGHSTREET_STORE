@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
         method: "GET",
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(10000),
-        redirect: "error",
+        redirect: "follow",
       });
     } catch {
       console.error("Catalogue fetch failed.");

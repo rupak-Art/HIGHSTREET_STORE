@@ -42,19 +42,149 @@ if (revealObserver) {
     gallery.querySelector(".gallery-main").src=imgs[next];
     gallery.querySelectorAll(".gallery-thumb").forEach((t,i)=>t.classList.toggle("active",i===next));
   });
-  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{let p=products.find(x=>x.id===b.dataset.add),size=document.getElementById("size-"+p.id).value;cart.push({id:p.id,name:p.name,size,price:Number(p.price)});renderCart()})}
-function renderCart(){document.getElementById("cartCount").textContent=cart.length;document.getElementById("cartItems").innerHTML=cart.map((x,i)=>`<div class="cart-row"><span><b>${esc(x.name)}</b><br>${esc(x.size)} · ₹${x.price}</span><button data-remove="${i}">REMOVE</button></div>`).join("")||"<p>Your bag is empty.</p>";document.getElementById("cartTotal").textContent="₹"+cart.reduce((a,x)=>a+x.price,0);document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{cart.splice(+b.dataset.remove,1);renderCart()})}
+  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{let p=products.find(x=>x.id===b.dataset.add),size=document.getElementById("size-"+p.id).value;let existing=cart.find(x=>x.id===p.id&&x.size===size);if(existing)existing.qty=(existing.qty||1)+1;else cart.push({id:p.id,name:p.name,size,price:Number(p.price),qty:1});renderCart()})}
+function cartSubtotal(){return cart.reduce((sum,item)=>sum+Number(item.price)*(Number(item.qty)||1),0)}
+function renderCart(){
+  const count=cart.reduce((sum,item)=>sum+(Number(item.qty)||1),0);
+  document.getElementById("cartCount").textContent=count;
+  document.getElementById("cartItems").innerHTML=cart.map((x,i)=>`<div class="cart-row"><span class="cart-item-copy"><b>${esc(x.name)}</b><br>${esc(x.size)} · ₹${x.price} each<div class="quantity-control"><button type="button" data-qty="${i}" data-delta="-1" aria-label="Decrease quantity">−</button><span>${Number(x.qty)||1}</span><button type="button" data-qty="${i}" data-delta="1" aria-label="Increase quantity">+</button></div></span><button type="button" data-remove="${i}">REMOVE</button></div>`).join("")||"<p>Your bag is empty.</p>";
+  document.getElementById("cartTotal").textContent="₹"+cartSubtotal();
+  document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{cart.splice(+b.dataset.remove,1);renderCart()});
+  document.querySelectorAll("[data-qty]").forEach(b=>b.onclick=()=>{const item=cart[Number(b.dataset.qty)];if(!item)return;item.qty=(Number(item.qty)||1)+Number(b.dataset.delta);if(item.qty<=0)cart.splice(Number(b.dataset.qty),1);renderCart()});
+}
 function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function openDrawer(){document.getElementById("cartDrawer").classList.add("open");document.getElementById("scrim").classList.add("show")}function closeAll(){document.getElementById("cartDrawer").classList.remove("open");document.getElementById("scrim").classList.remove("show")}
-document.getElementById("cartOpen").onclick=openDrawer;document.getElementById("scrim").onclick=closeAll;document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{document.getElementById(b.dataset.close).classList.remove("show");closeAll()});
-document.getElementById("checkout").onclick=()=>{if(!cart.length)return alert("Your bag is empty.");let lines=cart.map(x=>`${x.name} / ${x.size} / ₹${x.price}`).join("\n");let total=cart.reduce((a,x)=>a+x.price,0),url=wa(`Hi HIGHSTREET! I'd like to place this order:\n${lines}\nTotal: ₹${total}\nPlease confirm availability, delivery charges and payment details.`);if(url)window.open(url,"_blank")};
+document.getElementById("cartOpen").onclick=openDrawer;document.getElementById("scrim").onclick=closeAll;document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{const target=document.getElementById(b.dataset.close);target.classList.remove("show");if(target.hasAttribute("aria-hidden"))target.setAttribute("aria-hidden","true");closeAll()});
+const checkoutModal=document.getElementById("checkoutModal");
+document.getElementById("checkout").onclick=()=>{if(!cart.length)return alert("Your bag is empty.");renderCheckoutSummary();checkoutModal.classList.add("show");checkoutModal.setAttribute("aria-hidden","false");closeAll();};
+function renderCheckoutSummary(){
+  document.getElementById("checkoutSummaryItems").innerHTML=cart.map(x=>`<div class="checkout-summary-row"><span>${esc(x.name)} · ${esc(x.size)} × ${Number(x.qty)||1}</span><b>₹${Number(x.price)*(Number(x.qty)||1)}</b></div>`).join("");
+  document.getElementById("checkoutSubtotal").textContent="₹"+cartSubtotal();
+}
+document.getElementById("checkoutForm").onsubmit = async e => {
+  e.preventDefault();
+  if (!cart.length) {
+    alert("Your bag is empty.");
+    checkoutModal.classList.remove("show");
+    return;
+  }
+
+  const form = e.currentTarget;
+  const data = new FormData(form);
+  const method = data.get("paymentMethod");
+  const messageBox = document.getElementById("checkoutMessage");
+  const submit = form.querySelector('button[type="submit"]');
+
+  if (method === "online") {
+    messageBox.textContent = "Only Cash on Delivery is available right now.";
+    return;
+  }
+
+  const originalText = submit.textContent;
+  submit.disabled = true;
+  submit.textContent = "PLACING ORDER…";
+  messageBox.textContent = "Saving your order securely. Please wait and do not press the button again.";
+
+  try {
+    const client = await getSupabaseClient();
+
+    // Secure guest checkout: obtain a short-lived Supabase Anonymous Auth JWT.
+    // This lets create-order keep Verify JWT enabled; no customer account or password is needed.
+    let { data: sessionData, error: sessionError } = await client.auth.getSession();
+    if (sessionError) {
+      console.error("Could not read Supabase session:", sessionError);
+      throw new Error(`Could not prepare secure checkout: ${sessionError.message || "Supabase session could not be read"}. Your order has not been submitted.`);
+    }
+
+    if (!sessionData?.session) {
+      const { data: guestData, error: guestAuthError } = await client.auth.signInAnonymously();
+      if (guestAuthError) {
+        // Show the real Supabase error instead of incorrectly assuming anonymous sign-ins are disabled.
+        console.error("Anonymous checkout sign-in failed:", guestAuthError);
+        const detail = guestAuthError.message || guestAuthError.name || "Unknown Supabase authentication error";
+        throw new Error(`Guest sign-in failed: ${detail}. Check Supabase Auth logs and CAPTCHA settings. Your order has not been submitted.`);
+      }
+      sessionData = { session: guestData?.session || null };
+    }
+
+    // Confirm a session exists before calling an Edge Function with Verify JWT enabled.
+    if (!sessionData?.session) {
+      const { data: refreshedSession, error: refreshedSessionError } = await client.auth.getSession();
+      if (refreshedSessionError || !refreshedSession?.session) {
+        console.error("Anonymous sign-in returned without a session:", refreshedSessionError);
+        throw new Error("Supabase did not create a guest session. Check Authentication logs and CAPTCHA settings. Your order has not been submitted.");
+      }
+      sessionData = refreshedSession;
+    }
+
+    const { data: result, error } = await client.functions.invoke("create-order", {
+      body: {
+        customer: {
+          name: String(data.get("customerName") || "").trim(),
+          mobile: String(data.get("mobile") || "").trim(),
+          email: String(data.get("email") || "").trim(),
+          address: String(data.get("address") || "").trim(),
+          city: String(data.get("city") || "").trim(),
+          state: String(data.get("state") || "").trim(),
+          pincode: String(data.get("pincode") || "").trim()
+        },
+        items: cart.map(item => ({
+          product_id: String(item.id),
+          size: String(item.size),
+          quantity: Number(item.qty) || 1
+        })),
+        payment_method: "COD"
+      }
+    });
+
+    if (error) throw new Error(error.message || "Could not submit the order.");
+    if (!result || result.success !== true || !result.order_number) {
+      throw new Error(result?.error || "The order was not confirmed as saved.");
+    }
+
+    const orderItems = cart.map(item =>
+      `• ${item.name} / ${item.size} × ${Number(item.qty) || 1}`
+    ).join("\n");
+    const whatsappMessage = `Hi HIGHSTREET! I placed a Cash on Delivery order.
+
+Order number: ${result.order_number}
+${orderItems}
+
+Subtotal: ₹${result.subtotal}
+Shipping: ₹${result.shipping_charge}
+Total: ₹${result.total_amount}
+
+Please confirm the order and delivery estimate.`;
+    const whatsappUrl = wa(whatsappMessage);
+
+    cart = [];
+    renderCart();
+    messageBox.textContent = result.synced_to_sheet
+      ? `Order ${result.order_number} saved successfully. It is recorded in Supabase and Google Sheets.`
+      : `Order ${result.order_number} was saved in Supabase, but Google Sheets sync is pending. Please do not submit it again.`;
+
+    if (whatsappUrl) {
+      const opened = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        messageBox.textContent += " WhatsApp did not open automatically; please contact HIGHSTREET with your order number.";
+      }
+    }
+  } catch (err) {
+    console.error("HIGHSTREET checkout failed:", err);
+    messageBox.textContent = err?.message || "Checkout failed. Your order may not have been saved. Please contact HIGHSTREET before trying again.";
+  } finally {
+    submit.disabled = false;
+    submit.textContent = originalText;
+  }
+};
 document.getElementById("customForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target),u=wa(`Hi HIGHSTREET! Custom order request\nName: ${d.get("name")}\nIdea: ${d.get("idea")}\nFit: ${d.get("fit")}`);if(u)window.open(u,"_blank")};
 document.getElementById("igLink").href=CONFIG.instagram;document.getElementById("year").textContent=new Date().getFullYear();
 const modal=document.getElementById("adminModal");document.getElementById("adminOpen").onclick=()=>modal.classList.add("show");
 // Supabase admin authentication. The publishable key is public by design; never put service-role keys here.
 const SUPABASE_CONFIG = {
   url: "https://ydxitwostiygauymvuox.supabase.co",
-  publishableKey: "sb_publishable_8K-Kj6cwZO47l60uIc6pZQ_k7l9XBSC"
+  publishableKey: "sb_publishable_8K-Kj6cwZO47l60uIc6pZQ_k7l9XBSC",
+  createOrderFunctionUrl: "https://ydxitwostiygauymvuox.supabase.co/functions/v1/create-order"
 };
 let supabaseClient = null;
 let adminSession = null;

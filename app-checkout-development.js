@@ -87,6 +87,19 @@ document.getElementById("checkoutForm").onsubmit = async e => {
 
   try {
     const client = await getSupabaseClient();
+
+    // Secure guest checkout: obtain a short-lived Supabase Anonymous Auth JWT.
+    // This lets create-order keep Verify JWT enabled; no customer account or password is needed.
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw new Error("Could not prepare secure checkout. Please try again.");
+    if (!sessionData?.session) {
+      const { error: guestAuthError } = await client.auth.signInAnonymously();
+      if (guestAuthError) {
+        console.error("Anonymous checkout sign-in failed:", guestAuthError.message);
+        throw new Error("Guest checkout is not enabled in Supabase yet. Please contact HIGHSTREET; your order has not been submitted.");
+      }
+    }
+
     const { data: result, error } = await client.functions.invoke("create-order", {
       body: {
         customer: {

@@ -398,3 +398,43 @@ nav a:hover::after {
 
 /* Event-to-design linking in admin */
 .event-product-picker{display:grid;gap:8px;max-height:220px;overflow:auto;padding:12px;border:1px solid var(--line,#333);border-radius:10px;margin-top:8px}.event-product-option{display:flex;align-items:center;gap:8px;font-size:.9rem}.event-product-option input{width:auto}.event-product-option small{opacity:.65}.event-button{cursor:pointer;border:0;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+
+/* HIGHSTREET event banner fix: full-width landscape artwork, preserving original image ratio */
+.event-grid {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+}
+.event {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  padding: 22px;
+  background: #171717;
+  isolation: isolate;
+}
+.event img {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  opacity: 1;
+  z-index: -1;
+  transition: transform .7s cubic-bezier(.2,.8,.2,1);
+}
+.event:hover img {
+  transform: scale(1.025);
+}
+.event > *:not(img) {
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 700px) {
+  .event-grid { grid-template-columns: minmax(0, 1fr); }
+  .event { width: 100%; aspect-ratio: 16 / 9; min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .event, .event img { animation: none !important; transition: none !important; }
+}

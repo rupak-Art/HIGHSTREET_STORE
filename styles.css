@@ -81,3 +81,24 @@
   .event, .event::before { animation: none !important; }
   .event, .event img, .event a, .event button, .event .event-button { transition: none !important; }
 }
+
+
+/* HIGHSTREET: full-width event banners at 280px, responsive on desktop and mobile */
+.event-grid {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+}
+.event {
+  width: 100%;
+  height: 280px;
+  min-height: 280px;
+}
+@media (max-width: 700px) {
+  .event-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .event {
+    height: 280px;
+    min-height: 280px;
+  }
+}

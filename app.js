@@ -8,18 +8,53 @@ const starter=[
 {id:"HS004",name:"Mee Innocent friend kosam..",art:"YOUR ART",category:"Graphic",price:399,types:["Regular Fit","Oversized Fit"],sizes:SIZES,season:"Core",active:true,image:"images/Innocent%20X%20Graphic%20Tee%20Front%20and%20Back.png",badge:"NEW"}
 ];
 let products=load("hs_products",starter),events=load("hs_events",[{id:"EV1",title:"THE FIRST DROP",details:"Explore the opening HIGHSTREET collection.",badge:"NOW LIVE",active:true},{id:"EV2",title:"CUSTOM DESIGN WEEK",details:"Bring your idea. Let's make it wearable.",badge:"CUSTOM",active:true}]),cart=[],activeFit="All",activeCat="All",activeCollection="All",admin=false;
+// null means show the full catalogue; a Set means show only products linked to an event.
+let activeEventProductIds = null;
 let revealObserver = null;
 function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}
 function save(){localStorage.setItem("hs_products",JSON.stringify(products));localStorage.setItem("hs_events",JSON.stringify(events))}
 function productImages(p){return String(p?.image||"").split("|").map(x=>x.trim()).filter(Boolean)}
 function wa(msg){if(!/^\d{10,15}$/.test(CONFIG.whatsapp)){alert("Set your WhatsApp number in app.js or Admin → Settings first.");return null}return "https://wa.me/"+CONFIG.whatsapp+"?text="+encodeURIComponent(msg)}
-function renderEvents(){document.getElementById("events").innerHTML=events.filter(e=>e.active).map(e=>{const linked=Array.isArray(e.productIds)?e.productIds:[];const hasLinked=linked.some(id=>products.some(p=>p.id===id&&p.active));return `<article class="event">${e.image?`<img src="${esc(e.image)}" alt="${esc(e.title)}">`:""}<small>${esc(e.badge||"HIGHSTREET")}</small><b>${esc(e.title)}</b><span>${esc(e.details)}</span>${e.startDate||e.endDate?`<small class="event-dates">${esc(e.startDate)}${e.endDate?" – "+esc(e.endDate):""}</small>`:""}${hasLinked?`<button class="event-button" type="button" data-event-shop="${esc(e.id)}">${esc(e.buttonText||"SHOP THIS EVENT")}</button>`:(e.buttonText&&e.buttonLink&&/^https?:\/\//i.test(e.buttonLink)?`<a class="event-button" href="${esc(e.buttonLink)}" target="_blank" rel="noopener noreferrer">${esc(e.buttonText)}</a>`:"")}</article>`}).join("")||"<p>No events right now. Check back soon.</p>";document.querySelectorAll("[data-event-shop]").forEach(b=>b.onclick=()=>{const ev=events.find(x=>x.id===b.dataset.eventShop);if(!ev)return;const ids=Array.isArray(ev.productIds)?ev.productIds:[];const matches=products.filter(p=>p.active&&ids.includes(p.id));if(!matches.length){alert("No active designs are linked to this event yet.");return;}document.getElementById("products").innerHTML=matches.map(p=>{const imgs=productImages(p);return `<article class="product-card"><div class="product-img product-gallery">${imgs.length?`<img class="gallery-main" src="${esc(imgs[0])}" alt="${esc(p.name)}">`:`<div class="shirt-fallback">${p.art||esc(p.name)}</div>`}<span class="pill">${esc(p.badge||p.season)}</span></div><div class="pinfo"><div><h3>${esc(p.name)}</h3><p>${p.types.map(esc).join(" · ")}</p>${p.description?`<p class="product-description">${esc(p.description)}</p>`:""}</div><span class="price">₹${p.price}</span></div><div class="orderline"><select id="size-${esc(p.id)}">${p.sizes.map(x=>`<option>${esc(x)}</option>`).join("")}</select><button data-add="${esc(p.id)}">ADD TO BAG +</button></div></article>`}).join("");document.querySelectorAll("[data-add]").forEach(add=>add.onclick=()=>{const p=products.find(x=>x.id===add.dataset.add);if(!p)return;const size=document.getElementById("size-"+p.id).value;const old=cart.find(x=>x.id===p.id&&x.size===size);if(old)old.qty=(old.qty||1)+1;else cart.push({id:p.id,name:p.name,size,price:Number(p.price),qty:1});renderCart()});document.getElementById("shop").scrollIntoView({behavior:"smooth"});});}
+function shopThisEvent(eventId){
+  const event = events.find(e => String(e.id) === String(eventId));
+  if (!event) return;
+  const ids = Array.isArray(event.productIds)
+    ? event.productIds.map(id => String(id).trim()).filter(Boolean)
+    : [];
+  if (!ids.length) {
+    alert("No products have been linked to this event yet.");
+    return;
+  }
+  activeEventProductIds = new Set(ids);
+  activeCat = "All";
+  activeFit = "All";
+  activeCollection = "All";
+  render();
+  document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" });
+}
+function renderEvents(){document.getElementById("events").innerHTML=events.filter(e=>e.active).map(e=>`<article class="event" data-event-id="${esc(e.id)}">${e.image?`<img src="${esc(e.image)}" alt="${esc(e.title)}">`:""}<small>${esc(e.badge||"HIGHSTREET")}</small><b>${esc(e.title)}</b><span>${esc(e.details)}</span>${e.startDate||e.endDate?`<small class="event-dates">${esc(e.startDate)}${e.endDate?" – "+esc(e.endDate):""}</small>`:""}${e.buttonText&&e.buttonLink&&/^https?:\/\//i.test(e.buttonLink)?`<a class="event-button" href="${esc(e.buttonLink)}" target="_blank" rel="noopener noreferrer">${esc(e.buttonText)}</a>`:""}</article>`).join("")||"<p>No events right now. Check back soon.</p>";
+  document.querySelectorAll("#events [data-event-id]").forEach(card => {
+    card.onclick = event => {
+      if (event.target.closest("a, button")) return;
+      shopThisEvent(card.dataset.eventId);
+    };
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.onkeydown = event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        shopThisEvent(card.dataset.eventId);
+      }
+    };
+  });
+}
 function renderFilters(){
   document.getElementById("categoryFilters").innerHTML=["All","Graphic","Minimal"].map(x=>`<button data-cat="${x}" class="${activeCat===x?'active':''}">${x.toUpperCase()}</button>`).join("");
   document.getElementById("fitFilters").innerHTML=["All",...FITS].map(x=>`<button data-fit="${x}" class="${activeFit===x?'active':''}">${x.toUpperCase()}</button>`).join("");
   document.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{activeCat=b.dataset.cat;render()});
   document.querySelectorAll("[data-fit]").forEach(b=>b.onclick=()=>{activeFit=b.dataset.fit;render()});
   document.querySelectorAll("[data-collection]").forEach(b=>b.onclick=()=>{
+    activeEventProductIds = null;
     activeCollection=b.dataset.collection;
     activeCat="All";
     activeFit="All";
@@ -27,7 +62,7 @@ function renderFilters(){
     document.getElementById("shop").scrollIntoView({behavior:"smooth"});
   });
 }
-function render(){renderFilters();let shown=products.filter(p=>p.active&&(activeCollection==="All"||(p.collection||"Unisex")===activeCollection)&&(activeCat==="All"||p.category===activeCat)&&(activeFit==="All"||p.types.includes(activeFit)));document.getElementById("products").innerHTML=shown.map(p=>{const imgs=productImages(p);return `<article class="product-card"><div class="product-img product-gallery" data-gallery="${esc(p.id)}">${imgs.length?`<img class="gallery-main" src="${esc(imgs[0])}" alt="${esc(p.name)}">`:`<div class="shirt-fallback">${p.art||esc(p.name)}</div>`}${imgs.length>1?`<button class="gallery-arrow gallery-prev" type="button" data-gallery-prev="${esc(p.id)}" aria-label="Previous image">‹</button><button class="gallery-arrow gallery-next" type="button" data-gallery-next="${esc(p.id)}" aria-label="Next image">›</button><div class="gallery-thumbs">${imgs.map((src,i)=>`<button type="button" class="gallery-thumb ${i===0?'active':''}" data-gallery-thumb="${esc(p.id)}" data-index="${i}" aria-label="Show image ${i+1}"><img src="${esc(src)}" alt=""></button>`).join("")}</div>`:""}<span class="pill">${esc(p.badge||p.season)}</span></div><div class="pinfo"><div><h3>${esc(p.name)}</h3><p>${p.types.map(esc).join(" · ")}</p>${p.description ? `<p class="product-description">${esc(p.description)}</p>` : ""}</div><span class="price">₹${p.price}</span></div><div class="orderline"><select id="size-${p.id}">${p.sizes.map(s=>`<option>${esc(s)}</option>`).join("")}</select><button data-add="${p.id}">ADD TO BAG +</button></div></article>`}).join("")||"<p>No products in this filter yet.</p>";
+function render(){renderFilters();let shown=products.filter(p=>p.active&&(activeEventProductIds===null||activeEventProductIds.has(String(p.id)))&&(activeCollection==="All"||(p.collection||"Unisex")===activeCollection)&&(activeCat==="All"||p.category===activeCat)&&(activeFit==="All"||p.types.includes(activeFit)));document.getElementById("products").innerHTML=shown.map(p=>{const imgs=productImages(p);return `<article class="product-card"><div class="product-img product-gallery" data-gallery="${esc(p.id)}">${imgs.length?`<img class="gallery-main" src="${esc(imgs[0])}" alt="${esc(p.name)}">`:`<div class="shirt-fallback">${p.art||esc(p.name)}</div>`}${imgs.length>1?`<button class="gallery-arrow gallery-prev" type="button" data-gallery-prev="${esc(p.id)}" aria-label="Previous image">‹</button><button class="gallery-arrow gallery-next" type="button" data-gallery-next="${esc(p.id)}" aria-label="Next image">›</button><div class="gallery-thumbs">${imgs.map((src,i)=>`<button type="button" class="gallery-thumb ${i===0?'active':''}" data-gallery-thumb="${esc(p.id)}" data-index="${i}" aria-label="Show image ${i+1}"><img src="${esc(src)}" alt=""></button>`).join("")}</div>`:""}<span class="pill">${esc(p.badge||p.season)}</span></div><div class="pinfo"><div><h3>${esc(p.name)}</h3><p>${p.types.map(esc).join(" · ")}</p>${p.description ? `<p class="product-description">${esc(p.description)}</p>` : ""}</div><span class="price">₹${p.price}</span></div><div class="orderline"><select id="size-${p.id}">${p.sizes.map(s=>`<option>${esc(s)}</option>`).join("")}</select><button data-add="${p.id}">ADD TO BAG +</button></div></article>`}).join("")||"<p>No products in this filter yet.</p>";
 if (revealObserver) {
   observeRevealItems(document.getElementById("products"));
 }            
@@ -61,121 +96,16 @@ function renderCheckoutSummary(){
   document.getElementById("checkoutSummaryItems").innerHTML=cart.map(x=>`<div class="checkout-summary-row"><span>${esc(x.name)} · ${esc(x.size)} × ${Number(x.qty)||1}</span><b>₹${Number(x.price)*(Number(x.qty)||1)}</b></div>`).join("");
   document.getElementById("checkoutSubtotal").textContent="₹"+cartSubtotal();
 }
-document.getElementById("checkoutForm").onsubmit = async e => {
+document.getElementById("checkoutForm").onsubmit=e=>{
   e.preventDefault();
-  if (!cart.length) {
-    alert("Your bag is empty.");
-    checkoutModal.classList.remove("show");
-    return;
-  }
-
-  const form = e.currentTarget;
-  const data = new FormData(form);
-  const method = data.get("paymentMethod");
-  const messageBox = document.getElementById("checkoutMessage");
-  const submit = form.querySelector('button[type="submit"]');
-
-  if (method === "online") {
-    messageBox.textContent = "Only Cash on Delivery is available right now.";
-    return;
-  }
-
-  const originalText = submit.textContent;
-  submit.disabled = true;
-  submit.textContent = "PLACING ORDER…";
-  messageBox.textContent = "Saving your order securely. Please wait and do not press the button again.";
-
-  try {
-    const client = await getSupabaseClient();
-
-    // Secure guest checkout: obtain a short-lived Supabase Anonymous Auth JWT.
-    // This lets create-order keep Verify JWT enabled; no customer account or password is needed.
-    let { data: sessionData, error: sessionError } = await client.auth.getSession();
-    if (sessionError) {
-      console.error("Could not read Supabase session:", sessionError);
-      throw new Error(`Could not prepare secure checkout: ${sessionError.message || "Supabase session could not be read"}. Your order has not been submitted.`);
-    }
-
-    if (!sessionData?.session) {
-      const { data: guestData, error: guestAuthError } = await client.auth.signInAnonymously();
-      if (guestAuthError) {
-        // Show the real Supabase error instead of incorrectly assuming anonymous sign-ins are disabled.
-        console.error("Anonymous checkout sign-in failed:", guestAuthError);
-        const detail = guestAuthError.message || guestAuthError.name || "Unknown Supabase authentication error";
-        throw new Error(`Guest sign-in failed: ${detail}. Check Supabase Auth logs and CAPTCHA settings. Your order has not been submitted.`);
-      }
-      sessionData = { session: guestData?.session || null };
-    }
-
-    // Confirm a session exists before calling an Edge Function with Verify JWT enabled.
-    if (!sessionData?.session) {
-      const { data: refreshedSession, error: refreshedSessionError } = await client.auth.getSession();
-      if (refreshedSessionError || !refreshedSession?.session) {
-        console.error("Anonymous sign-in returned without a session:", refreshedSessionError);
-        throw new Error("Supabase did not create a guest session. Check Authentication logs and CAPTCHA settings. Your order has not been submitted.");
-      }
-      sessionData = refreshedSession;
-    }
-
-    const { data: result, error } = await client.functions.invoke("create-order", {
-      body: {
-        customer: {
-          name: String(data.get("customerName") || "").trim(),
-          mobile: String(data.get("mobile") || "").trim(),
-          email: String(data.get("email") || "").trim(),
-          address: String(data.get("address") || "").trim(),
-          city: String(data.get("city") || "").trim(),
-          state: String(data.get("state") || "").trim(),
-          pincode: String(data.get("pincode") || "").trim()
-        },
-        items: cart.map(item => ({
-          product_id: String(item.id),
-          size: String(item.size),
-          quantity: Number(item.qty) || 1
-        })),
-        payment_method: "COD"
-      }
-    });
-
-    if (error) throw new Error(error.message || "Could not submit the order.");
-    if (!result || result.success !== true || !result.order_number) {
-      throw new Error(result?.error || "The order was not confirmed as saved.");
-    }
-
-    const orderItems = cart.map(item =>
-      `• ${item.name} / ${item.size} × ${Number(item.qty) || 1}`
-    ).join("\n");
-    const whatsappMessage = `Hi HIGHSTREET! I placed a Cash on Delivery order.
-
-Order number: ${result.order_number}
-${orderItems}
-
-Subtotal: ₹${result.subtotal}
-Shipping: ₹${result.shipping_charge}
-Total: ₹${result.total_amount}
-
-Please confirm the order and delivery estimate.`;
-    const whatsappUrl = wa(whatsappMessage);
-
-    cart = [];
-    renderCart();
-    messageBox.textContent = result.synced_to_sheet
-      ? `Order ${result.order_number} saved successfully. It is recorded in Supabase and Google Sheets.`
-      : `Order ${result.order_number} was saved in Supabase, but Google Sheets sync is pending. Please do not submit it again.`;
-
-    if (whatsappUrl) {
-      const opened = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        messageBox.textContent += " WhatsApp did not open automatically; please contact HIGHSTREET with your order number.";
-      }
-    }
-  } catch (err) {
-    console.error("HIGHSTREET checkout failed:", err);
-    messageBox.textContent = err?.message || "Checkout failed. Your order may not have been saved. Please contact HIGHSTREET before trying again.";
-  } finally {
-    submit.disabled = false;
-    submit.textContent = originalText;
-  }
+  if(!cart.length){alert("Your bag is empty.");checkoutModal.classList.remove("show");return;}
+  const form=e.currentTarget, data=new FormData(form), method=data.get("paymentMethod");
+  if(method==="online"){document.getElementById("checkoutMessage").textContent="Online payment is not enabled yet. Please choose COD until the payment gateway is configured.";return;}
+  const submit=form.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent="PREPARING ORDER…";
+  const items=cart.map(x=>`• ${x.name} / ${x.size} × ${Number(x.qty)||1} / ₹${Number(x.price)*(Number(x.qty)||1)}`).join("\n");
+  const message=`Hi HIGHSTREET! I would like to request a Cash on Delivery order.\n\nCUSTOMER DETAILS\nName: ${data.get("customerName")}\nMobile: ${data.get("mobile")}\nEmail: ${data.get("email")||"Not provided"}\nAddress: ${data.get("address")}\nCity: ${data.get("city")}\nState: ${data.get("state")}\nPIN: ${data.get("pincode")}\n\nORDER\n${items}\nSubtotal: ₹${cartSubtotal()}\nPayment: Cash on Delivery\n\nPlease confirm stock, shipping charges and delivery estimate. I understand this is an order request and is not confirmed until HIGHSTREET replies.`;
+  const url=wa(message);submit.disabled=false;submit.textContent="CONTINUE WITH COD ON WHATSAPP ↗";
+  if(url){window.open(url,"_blank","noopener,noreferrer");document.getElementById("checkoutMessage").textContent="WhatsApp opened with your order request. Review the message and press Send to contact HIGHSTREET.";}
 };
 document.getElementById("customForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target),u=wa(`Hi HIGHSTREET! Custom order request\nName: ${d.get("name")}\nIdea: ${d.get("idea")}\nFit: ${d.get("fit")}`);if(u)window.open(u,"_blank")};
 document.getElementById("igLink").href=CONFIG.instagram;document.getElementById("year").textContent=new Date().getFullYear();
@@ -290,7 +220,7 @@ function renderAdmin(){
     '<p class="notice">Product saves are sent securely to Google Sheets. Product deletion is not connected yet.</p>' +
     products.map(p=>`<div class="admin-item"><span>${esc(p.name)} · ${p.types.map(esc).join(", ")}</span><span><button data-edit="${esc(p.id)}">EDIT</button></span></div>`).join("");
   document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>fillProduct(products.find(x=>x.id===b.dataset.edit)));
-  const picker=document.getElementById("eventProductPicker");if(picker)picker.innerHTML=products.map(p=>`<label class="event-product-option"><input type="checkbox" name="eventProducts" value="${esc(p.id)}"> ${esc(p.name)} <small>(${esc(p.id)})</small></label>`).join("")||"<p class=\"notice\">Add products before linking an event.</p>";document.getElementById("adminEventList").innerHTML=events.map(e=>`<div class="admin-item"><span>${esc(e.title)} · ${(e.productIds||[]).length} linked design(s)</span><button data-edel="${esc(e.id)}">DELETE</button></div>`).join("");
+  document.getElementById("adminEventList").innerHTML=events.map(e=>`<div class="admin-item"><span>${esc(e.title)}</span><button data-edel="${e.id}">DELETE</button></div>`).join("");
   document.querySelectorAll("[data-edel]").forEach(b=>b.onclick=()=>{events=events.filter(e=>e.id!==b.dataset.edel);save();renderEvents();renderAdmin()});
 }
 function fillProduct(p){let f=document.getElementById("productForm");for(let k of ["id","name","image","art","price","category","season"])f.elements[k].value=p[k]??"";f.querySelectorAll('[name="types"]').forEach(x=>x.checked=p.types.includes(x.value));f.querySelectorAll('[name="sizes"]').forEach(x=>x.checked=p.sizes.includes(x.value));f.elements.active.checked=p.active;document.getElementById("productsTab").scrollIntoView({behavior:"smooth"})}
@@ -339,7 +269,7 @@ document.getElementById("productForm").onsubmit = async e => {
     saveButton.textContent = originalText;
   }
 };
-document.getElementById("eventForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target);const productIds=[...e.target.querySelectorAll('[name="eventProducts"]:checked')].map(x=>x.value);events.unshift({id:"EV"+Date.now(),title:d.get("title"),details:d.get("details"),image:d.get("image"),badge:d.get("badge"),buttonText:"SHOP THIS EVENT",productIds,active:e.target.elements.active.checked});save();renderEvents();renderAdmin();e.target.reset();alert("Event saved in this browser with its linked designs. For live multi-device persistence, add productIds to the Google Sheets Events backend.")};
+document.getElementById("eventForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target);events.unshift({id:"EV"+Date.now(),title:d.get("title"),details:d.get("details"),image:d.get("image"),badge:d.get("badge"),active:e.target.elements.active.checked});save();renderEvents();renderAdmin();e.target.reset()};
 document.getElementById("settingsForm").onsubmit=e=>{e.preventDefault();let d=new FormData(e.target);CONFIG.whatsapp=d.get("whatsapp").replace(/\D/g,"");CONFIG.instagram=d.get("instagram");document.getElementById("igLink").href=CONFIG.instagram;alert("Saved for this page session. For permanent live settings, update CONFIG in app.js or connect the backend.");};
 
 render();renderEvents();renderCart();
@@ -409,16 +339,19 @@ function loadLiveEvents() {
           startDate: String(e.startDate || ""),
           endDate: String(e.endDate || ""),
           buttonText: String(e.buttonText || ""),
-          productIds: Array.isArray(e.productIds) ? e.productIds.map(String) : (typeof e.productIds === "string" ? e.productIds.split(/[|,]/).map(x=>x.trim()).filter(Boolean) : []),
           buttonLink: String(e.buttonLink || ""),
           themeName: String(e.themeName || ""),
           backgroundGradient: String(e.backgroundGradient || ""),
           textColor: String(e.textColor || ""),
           accentColor: String(e.accentColor || ""),
           buttonColor: String(e.buttonColor || ""),
-          buttonTextColor: String(e.buttonTextColor || "")
+          buttonTextColor: String(e.buttonTextColor || ""),
+          productIds: Array.isArray(e.productIds)
+            ? e.productIds.map(id => String(id).trim()).filter(Boolean)
+            : []
         }));
 
+        activeEventProductIds = null;
         renderEvents();
 
         const now = new Date();

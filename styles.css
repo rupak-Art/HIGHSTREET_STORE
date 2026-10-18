@@ -395,3 +395,64 @@ nav a:hover::after {
 .product-card:nth-child(4) { transition-delay: 0.24s; }
 .product-card:nth-child(5) { transition-delay: 0.32s; }
 .product-card:nth-child(6) { transition-delay: 0.40s; }
+
+/* Larger, more prominent DROPS & EVENTS banners */
+#drops .event-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+#drops .event {
+  min-height: 320px;
+  padding: 30px;
+  gap: 14px;
+}
+
+#drops .event img {
+  opacity: 0.42;
+  transition: transform .45s ease, opacity .3s ease;
+}
+
+#drops .event:hover img {
+  transform: scale(1.035);
+  opacity: 0.52;
+}
+
+#drops .event b {
+  font-size: clamp(25px, 3vw, 38px);
+  line-height: 1.05;
+  max-width: 90%;
+}
+
+#drops .event span {
+  max-width: 560px;
+  line-height: 1.6;
+}
+
+#drops .event .event-button {
+  align-self: flex-start;
+  display: inline-block;
+  margin-top: 6px;
+  padding: 11px 15px;
+  background: var(--hs-theme-button, #171717);
+  color: var(--hs-theme-button-text, #ffffff);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+@media (max-width: 700px) {
+  #drops .event-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #drops .event {
+    min-height: 270px;
+    padding: 22px;
+  }
+
+  #drops .event b {
+    font-size: clamp(24px, 7vw, 32px);
+  }
+}
